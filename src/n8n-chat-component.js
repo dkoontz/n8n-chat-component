@@ -39,7 +39,6 @@ class ChatComponent extends HTMLElement {
     }
 
     set initialMessages(value) {
-        console.log('Setting initial messages:', value, 'isRendered:', this.isRendered);
         this._initialMessages = Array.isArray(value) ? value : [];
         // If the component is already rendered, insert the messages
         if (this.isRendered) {
@@ -49,8 +48,6 @@ class ChatComponent extends HTMLElement {
 
     // Handle attribute changes
     attributeChangedCallback(name, oldValue, newValue) {
-        console.log(`Attribute ${name} changed from ${oldValue} to ${newValue}`);
-
         if (name === 'webhook-url') {
             this.webhookUrl = newValue;
         } else if (name === 'initial-messages' && newValue) {
@@ -63,7 +60,6 @@ class ChatComponent extends HTMLElement {
     }
 
     insertInitialMessages() {
-        console.log('Inserting initial messages:', this._initialMessages);
         // Clear existing messages first (in case this is called multiple times)
         const messagesContainer = this.shadowRoot.querySelector('.chat-messages');
         if (messagesContainer) {
@@ -71,7 +67,6 @@ class ChatComponent extends HTMLElement {
             this.messages = [];
 
             this._initialMessages.forEach(message => {
-                console.log('Adding message to DOM:', message);
                 this.messages.push({ source: 'n8n', message });
                 this.addMessageToDom(message, 'n8n');
             });
@@ -234,7 +229,6 @@ class ChatComponent extends HTMLElement {
 
         // Mark as rendered and insert initial messages if they exist
         this.isRendered = true;
-        console.log('Component rendered, initial messages:', this._initialMessages);
         if (this._initialMessages.length > 0) {
             this.insertInitialMessages();
         }
