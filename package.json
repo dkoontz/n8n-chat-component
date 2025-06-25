@@ -1,0 +1,21 @@
+{
+  "name": "n8n-chat-component",
+  "version": "1.0.0",
+  "description": "A simple chat interface that communicates with n8n using webhooks.",
+  "main": "src/chat-component.js",
+  "scripts": {
+    "serve": "node scripts/serve.js",
+    "start": "npx lite-server"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "lite-server": "^2.5.4"
+  },
+  "keywords": [
+    "n8n",
+    "chat",
+    "web-component"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+}
