@@ -27,7 +27,6 @@ type: custom:n8n-chat-card
 webhook_url: 'https://your-n8n-instance.com/webhook/your-webhook-id'
 initial_messages:
   - 'Hello! How can I assist you today?'
-  - 'Feel free to ask anything.'
 ```
 
 ## Configuration Options
@@ -76,3 +75,6 @@ Your n8n webhook should return JSON in this format:
   "reply": "Your response message here"
 }
 ```
+
+## TODO
+- Handle failures by displaying a message as a banner that appears and then fades out. Error banner should also have a button to dismiss it early.

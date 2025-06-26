@@ -10,8 +10,10 @@
 <body>
     <h1>n8n Chat Component Example</h1>
     <div style="overflow: scroll; border: 1; border-style: solid; width: 500px; height: 800px; max-height: 800px;">
-        <n8n-chat-component webhook-url="https://n8n.koontzfamily.org/webhook/ed12105b-3e46-4a2d-8807-f2c7d04883e1"
-            initial-messages='["Hello! How can I assist you today?", "Feel free to ask anything."]'>
+        <n8n-chat-component
+            history-webhook-url="https://n8n.koontzfamily.org/webhook/b8358f47-09c6-4959-8049-de2785318ab0"
+            chat-webhook-url="https://n8n.koontzfamily.org/webhook/ed12105b-3e46-4a2d-8807-f2c7d04883e1"
+            initial-messages='["Hello! How can I assist you today?"]'>
         </n8n-chat-component>
     </div>
 

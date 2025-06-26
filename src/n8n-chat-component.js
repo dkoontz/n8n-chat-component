@@ -8,7 +8,7 @@
 
 class ChatComponent extends HTMLElement {
     static get observedAttributes() {
-        return ['webhook-url', 'initial-messages'];
+        return ['chat-webhook-url', 'history-webhook-url', 'initial-messages'];
     }
 
     constructor() {
@@ -18,9 +18,11 @@ class ChatComponent extends HTMLElement {
         this._initialMessages = [];
         this.isRendered = false;
         this.waitingOnReply = false;
+        this.sessionId = this.generateUUID();
 
         // Initialize from attributes if present
-        this.webhookUrl = this.getAttribute('webhook-url') || '';
+        this.chatWebhookUrl = this.getAttribute('chat-webhook-url') || '';
+        this.historyWebhookUrl = this.getAttribute('history-webhook-url') || '';
         const initialMessagesAttr = this.getAttribute('initial-messages');
         if (initialMessagesAttr) {
             try {
@@ -31,6 +33,20 @@ class ChatComponent extends HTMLElement {
         }
 
         this.render();
+
+        // Fetch message history if history webhook is provided
+        if (this.historyWebhookUrl) {
+            this.fetchMessageHistory();
+        }
+    }
+
+    // UUID generation method
+    generateUUID() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+            const r = Math.random() * 16 | 0;
+            const v = c == 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
     }
 
     // Property setters and getters
@@ -41,15 +57,21 @@ class ChatComponent extends HTMLElement {
     set initialMessages(value) {
         this._initialMessages = Array.isArray(value) ? value : [];
         // If the component is already rendered, insert the messages
-        if (this.isRendered) {
-            this.insertInitialMessages();
-        }
+
+        this.insertInitialMessages();
+
     }
 
     // Handle attribute changes
     attributeChangedCallback(name, oldValue, newValue) {
-        if (name === 'webhook-url') {
-            this.webhookUrl = newValue;
+        if (name === 'chat-webhook-url') {
+            this.chatWebhookUrl = newValue;
+        } else if (name === 'history-webhook-url') {
+            this.historyWebhookUrl = newValue;
+            // Fetch message history if history webhook is provided and component is rendered
+            if (this.historyWebhookUrl && this.isRendered) {
+                this.fetchMessageHistory();
+            }
         } else if (name === 'initial-messages' && newValue) {
             try {
                 this.initialMessages = JSON.parse(newValue);
@@ -60,28 +82,33 @@ class ChatComponent extends HTMLElement {
     }
 
     insertInitialMessages() {
-        // Clear existing messages first (in case this is called multiple times)
-        const messagesContainer = this.shadowRoot.querySelector('.chat-messages');
-        if (messagesContainer) {
-            messagesContainer.innerHTML = '';
-            this.messages = [];
+        if (this.isRendered) {
+            // Clear existing messages first (in case this is called multiple times)
+            const messagesContainer = this.shadowRoot.querySelector('.chat-messages');
+            if (messagesContainer) {
+                messagesContainer.innerHTML = '';
+                this.messages = [];
 
-            this._initialMessages.forEach(message => {
-                this.messages.push({ source: 'n8n', message });
-                this.addMessageToDom(message, 'n8n');
-            });
+                this._initialMessages.forEach(message => {
+                    this.insertMessage(message, 'n8n');
+                });
+            }
         }
     }
 
+    insertMessage(message, source) {
+        this.messages.push({ message, source });
+        this.addMessageToDom(message, source);
+    }
+
     async sendMessage(message) {
-        if (!this.webhookUrl || this.waitingOnReply) {
-            if (!this.webhookUrl) console.error('Webhook URL is not set.');
+        if (!this.chatWebhookUrl || this.waitingOnReply) {
+            if (!this.chatWebhookUrl) console.error('Chat webhook URL is not set.');
             return;
         }
         try {
             this.setWaitingOnReply(true);
-            this.messages.push({ source: 'user', message });
-            this.addMessageToDom(message, 'user');
+            this.insertMessage(message, 'user');
             await this.sendMessageToWebhook(message);
         } catch (error) {
             console.error('Error sending message:', error);
@@ -91,19 +118,54 @@ class ChatComponent extends HTMLElement {
     }
 
     async sendMessageToWebhook(message) {
-        const response = await fetch(this.webhookUrl, {
+        const response = await fetch(this.chatWebhookUrl, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ message })
+            body: JSON.stringify({
+                message,
+                sessionId: this.sessionId
+            })
         });
         if (!response.ok) {
             throw new Error('Failed to send message to webhook');
         }
         const data = await response.json();
-        this.messages.push({ source: 'n8n', message: data.reply });
-        this.addMessageToDom(data.reply, 'n8n');
+        this.insertMessage(data.reply, 'n8n');
+    }
+
+    async fetchMessageHistory() {
+        try {
+            const response = await fetch(this.historyWebhookUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    sessionId: this.sessionId
+                })
+            });
+            if (!response.ok) {
+                throw new Error('Failed to fetch message history');
+            }
+            const data = await response.json();
+            if (data.messageHistory && Array.isArray(data.messageHistory)) {
+                // Clear existing messages and add history
+                this.messages = [];
+                const messagesContainer = this.shadowRoot.querySelector('.chat-messages');
+                if (messagesContainer) {
+                    messagesContainer.innerHTML = '';
+                }
+
+                // Add each message from history
+                data.messageHistory.forEach(historyMessage => {
+                    this.insertMessage(historyMessage.message, historyMessage.source);
+                });
+            }
+        } catch (error) {
+            console.error('Error fetching message history:', error);
+        }
     }
 
     setWaitingOnReply(loading) {
@@ -115,10 +177,12 @@ class ChatComponent extends HTMLElement {
     }
 
     addMessageToDom(message, sender) {
-        const messageElement = document.createElement('div');
-        messageElement.className = sender === 'user' ? 'user-message' : 'n8n-message';
-        messageElement.textContent = message;
-        this.shadowRoot.querySelector('.chat-messages').appendChild(messageElement);
+        if (this.isRendered) {
+            const messageElement = document.createElement('div');
+            messageElement.className = sender === 'user' ? 'user-message' : 'n8n-message';
+            messageElement.textContent = message;
+            this.shadowRoot.querySelector('.chat-messages').appendChild(messageElement);
+        }
     }
 
     render() {

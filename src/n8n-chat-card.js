@@ -20,8 +20,8 @@ class N8nChatCard extends HTMLElement {
      * Validates and stores the card configuration
      */
     setConfig(config) {
-        if (!config.webhook_url) {
-            throw new Error('webhook_url is required');
+        if (!config.chat_webhook_url) {
+            throw new Error('chat_webhook_url is required');
         }
 
         this.config = config;
@@ -69,7 +69,11 @@ class N8nChatCard extends HTMLElement {
         const chatComponent = document.createElement('n8n-chat-component');
 
         // Set attributes from card config
-        chatComponent.setAttribute('webhook-url', this.config.webhook_url);
+        chatComponent.setAttribute('chat-webhook-url', this.config.chat_webhook_url);
+        
+        if (this.config.history_webhook_url) {
+            chatComponent.setAttribute('history-webhook-url', this.config.history_webhook_url);
+        }
 
         if (this.config.initial_messages) {
             chatComponent.setAttribute('initial-messages', JSON.stringify(this.config.initial_messages));
@@ -80,7 +84,10 @@ class N8nChatCard extends HTMLElement {
 
         // Fallback: Set properties directly as well (in case attributes don't work)
         setTimeout(() => {
-            chatComponent.webhookUrl = this.config.webhook_url;
+            chatComponent.chatWebhookUrl = this.config.chat_webhook_url;
+            if (this.config.history_webhook_url) {
+                chatComponent.historyWebhookUrl = this.config.history_webhook_url;
+            }
             if (this.config.initial_messages) {
                 chatComponent.initialMessages = this.config.initial_messages;
             }
