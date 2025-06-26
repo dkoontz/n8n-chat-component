@@ -1,21 +1,14 @@
 # n8n Chat Component
 
-This project provides a simple chat interface that communicates with n8n using webhooks. The chat component is built as a web component, allowing for easy integration into any web application.
+This project provides a zero-dependency web component chat interface that communicates with n8n using webhooks. The chat component is built as a web component with session management and message history capabilities, allowing for easy integration into any web application and also comes with a convenient Home Assistant card.
 
 ## Features
 
-- Configurable webhook URL for sending messages.
-- Initial messages can be set when the component is instantiated.
-- User-friendly chat interface with customizable styles.
-
-## Installation
-
-To use the n8n chat component, you can clone the repository and include the `chat-component.js` file in your project.
-
-```bash
-git clone <repository-url>
-cd n8n-chat-component
-```
+- **Webhook Based Chat with n8n**: Easy integration with n8n using a Webhook trigger
+- **Session Management**: Configurable session IDs with UUID fallback for conversation continuity
+- **Message History**: Configurable webhook for fetching and display of conversation history
+- **Initial Messages**: Predefined welcome messages that appear before history
+- **Home Assistant Integration**: Custom card wrapper for seamless Home Assistant integration
 
 ## Usage
 
@@ -24,34 +17,162 @@ cd n8n-chat-component
 You can include the chat component in your HTML as follows:
 
 ```html
-<script type="module" src="./src/chat-component.js"></script>
+<script type="module" src="./src/n8n-chat-component.js"></script>
 ```
 
-### Example
 
-Here is an example of how to use the `ChatComponent` in your HTML:
+### Basic Example
+
+Here is an example of how to use the `n8n-chat-component` in your HTML:
 
 ```html
-<chat-component 
-    webhook-url="https://your-n8n-instance.com/webhook" 
+<n8n-chat-component 
+    chat-webhook-url="https://your-n8n-instance.com/chat-webhook" 
     initial-messages='["Hello!", "How can I assist you today?"]'>
-</chat-component>
+</n8n-chat-component>
+```
+
+### Advanced Example with Session Management and History
+
+```html
+<n8n-chat-component 
+    chat-webhook-url="https://your-n8n-instance.com/chat-webhook"
+    history-webhook-url="https://your-n8n-instance.com/history-webhook"
+    session-id="f47ac10b-58cc-4372-a567-0e02b2c3d479"
+    initial-messages='["Welcome back!", "Your previous conversation is loaded below."]'>
+</n8n-chat-component>
 ```
 
 ### Attributes
 
-- `webhook-url`: The URL of your n8n webhook where messages will be sent.
-- `initial-messages`: A JSON string array of messages to display when the chat initializes.
+- `chat-webhook-url` (required): The URL of your n8n webhook where chat messages will be sent
+- `history-webhook-url` (optional): The URL of your n8n webhook for fetching message history
+- `session-id` (optional): Unique identifier for the chat session. If not provided, a UUID will be generated
+- `initial-messages` (optional): A JSON string array of messages to display before history messages
 
-## Development
+## Webhook API
 
-To contribute to the project, you can run the following commands:
+### Chat Webhook
+
+The chat webhook receives user messages and should return AI responses.
+
+**Request Format:**
+```json
+{
+  "message": "User's message text",
+  "sessionId": "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+}
+```
+
+**Response Format:**
+```json
+{
+  "reply": "AI response message"
+}
+```
+
+### History Webhook
+
+The history webhook fetches previous conversation messages for a session. This can be done by using a Chat Memory Manager node and enabling `Simplify Output` and `Group Messages`.
+
+**Request Format:**
+```json
+{
+  "sessionId": "f47ac10b-58cc-4372-a567-0e02b2c3d479"
+}
+```
+
+**Response Format:**
+This is the format produced by the Chat Memory Manager node when `Simply Output` and `Group Messages` are both enabled.
+```json
+{
+  "messageHistory": "[{\"human\":\"User message\",\"ai\":\"AI response\"},{\"ai\":\"AI-only message\"}]"
+}
+```
+
+Note: The `messageHistory` field contains a JSON string that should be parsed. Each message object can contain:
+- `human`: User message (maps to "user" source in the messages array)
+- `ai`: AI message (maps to "n8n" source in the messages array)
+- Both fields are optional, allowing for messages from only one participant
+
+## Example workflow
+
+An example n8n workflow is included in examples/n8n_example_workflow.json.
+
+## Running locally
+
+You can run the example locally. Clone the project then run the following commands:
 
 ```bash
 npm install
-npm run build
+npm run start  # Starts lite-server for development
 ```
+
+Then access the example at http://localhost:3000/examples/index.html
+
+## File Structure
+
+```
+src/
+├── n8n-chat-component.js    # Main chat component
+├── n8n-chat-card.js         # Home Assistant card wrapper
+examples/
+├── index.html               # Basic usage example
+```
+
+## Session Management
+
+Sessions enable conversation continuity across page reloads or component re-instantiations:
+
+1. **New Session**: Component generates a UUID automatically
+2. **Resume Session**: Provide existing `session-id` to continue previous conversation
+3. **Dynamic Switching**: Change `session-id` attribute to switch between conversations
+
+## Using n8n Chat Card in Home Assistant
+
+The n8n-chat-card component is a Home Assistant card that wraps the n8n-chat-component. To use it add a Manual card and specify this yaml:
+
+```yaml
+type: custom:n8n-chat-card
+chat_webhook_url: "https://your-n8n-instance.com/chat-webhook"
+initial_messages:
+  - "Welcome to your Home Assistant chat!"
+  - "How can I help you today?"
+```
+
+If you want to use dynamic values, for example to set a session id or an initial message you can use the [Config Template Card](https://github.com/iantrich/config-template-card/) from HACS and reference a helper such as an input_text.
+
+```yaml
+type: custom:config-template-card
+entities:
+  - input_text.agent_message
+card:
+  type: custom:n8n-chat-card
+  chat_webhook_url: https://your-n8n-instance.com/chat-webhook
+  initial_messages:
+    - ${states['input_text.agent_message'].state}
+```
+
+### Installation
+
+1. **Upload the Files**
+   
+   Copy both files to your Home Assistant `www` directory:
+   - `n8n-chat-component.js`
+   - `n8n-chat-card.js`
+   
+   Files should be placed in: `/config/www/`, create this directory if it doesn't exist.
+
+2. **Add the Custom Card Resource**
+   
+   In your Home Assistant dashboard, go to Settings → Dashboards → Your Dashboard → Edit Dashboard → Manage Resources
+   
+   Add a new resource:
+   - **URL**: `/local/n8n-chat-card.js` (or your hosted URL)
+   - **Resource Type**: JavaScript Module
+
+
 
 ## License
 
-This project is licensed under the MIT License. See the LICENSE file for more details.
+This project is licensed under the MIT License.

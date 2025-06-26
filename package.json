@@ -4,7 +4,6 @@
   "description": "A simple chat interface that communicates with n8n using webhooks.",
   "main": "src/chat-component.js",
   "scripts": {
-    "serve": "node scripts/serve.js",
     "start": "npx lite-server"
   },
   "dependencies": {},
