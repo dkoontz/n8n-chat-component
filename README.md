@@ -8,6 +8,7 @@ This project provides a zero-dependency web component chat interface that commun
 - **Session Management**: Configurable session IDs with UUID fallback for conversation continuity
 - **Message History**: Configurable webhook for fetching and display of conversation history
 - **Initial Messages**: Predefined welcome messages that appear before history
+- **Markdown Support**: Zero-dependency markdown parsing for rich text formatting in messages
 - **Home Assistant Integration**: Custom card wrapper for seamless Home Assistant integration
 
 ## Usage
@@ -94,6 +95,51 @@ Note: The `messageHistory` field contains a JSON string that should be parsed. E
 - `human`: User message (maps to "user" source in the messages array)
 - `ai`: AI message (maps to "n8n" source in the messages array)
 - Both fields are optional, allowing for messages from only one participant
+
+## Markdown Support
+
+The chat component includes built-in markdown parsing that automatically formats messages with rich text elements. The following markdown syntax is supported:
+
+### Supported Markdown Features
+
+- **Bold text**: `**bold text**` or `__bold text__`
+- **Italic text**: `*italic text*` or `_italic text_`
+- **Inline code**: `` `code` ``
+- **Code blocks**: 
+  ```
+  ```
+  code block
+  ```
+  ```
+- **Links**: `[link text](https://example.com)`
+- **Headers**: `# Header 1`, `## Header 2`, `### Header 3`
+- **Lists**: `- list item`
+- **Line breaks**: Double newlines create paragraphs, single newlines create `<br>` tags
+
+### Example Markdown Message
+
+```markdown
+Here's a **bold** statement and some *italic* text.
+
+You can include `inline code` or code blocks:
+
+```
+function hello() {
+    console.log("Hello world!");
+}
+```
+
+Visit [this link](https://n8n.io) for more information.
+
+### Features:
+- Feature 1
+- Feature 2
+- Feature 3
+```
+
+### Security
+
+All user input is automatically sanitized to prevent XSS attacks while preserving markdown formatting. HTML tags are escaped before markdown parsing, ensuring safe rendering of user-generated content.
 
 ## Example workflow
 

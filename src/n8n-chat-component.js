@@ -49,6 +49,53 @@ class ChatComponent extends HTMLElement {
         });
     }
 
+    // Markdown parsing method
+    parseMarkdown(text) {
+        if (!text) return '';
+        
+        // Escape HTML to prevent XSS
+        let html = text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+
+        // Parse markdown syntax
+        html = html
+            // Code blocks (triple backticks)
+            .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
+            // Inline code
+            .replace(/`([^`]+)`/g, '<code>$1</code>')
+            // Bold text (**text** or __text__)
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/__(.*?)__/g, '<strong>$1</strong>')
+            // Italic text (*text* or _text_)
+            .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+            .replace(/_([^_]+)_/g, '<em>$1</em>')
+            // Links [text](url)
+            .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+            // Headers (# ## ###)
+            .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+            .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+            .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+            // Lists (- item)
+            .replace(/^- (.*)$/gm, '<li>$1</li>')
+            // Wrap consecutive list items in <ul>
+            .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
+            // Line breaks (double newlines become paragraphs)
+            .replace(/\n\n+/g, '</p><p>')
+            // Single newlines become <br>
+            .replace(/\n/g, '<br>');
+
+        // Wrap in paragraph if it doesn't start with a block element
+        if (!html.match(/^<(h[1-6]|ul|pre|p)/)) {
+            html = '<p>' + html + '</p>';
+        }
+
+        return html;
+    }
+
     // Property setters and getters
     get initialMessages() {
         return this._initialMessages;
@@ -211,7 +258,7 @@ class ChatComponent extends HTMLElement {
         if (this.isRendered) {
             const messageElement = document.createElement('div');
             messageElement.className = sender === 'user' ? 'user-message' : 'n8n-message';
-            messageElement.textContent = message;
+            messageElement.innerHTML = this.parseMarkdown(message);
             this.shadowRoot.querySelector('.chat-messages').appendChild(messageElement);
         }
     }
@@ -293,6 +340,83 @@ class ChatComponent extends HTMLElement {
                 .send-button:disabled {
                     background-color: #6c757d;
                     cursor: not-allowed;
+                }
+
+                /* Markdown styles */
+                .user-message p, .n8n-message p {
+                    margin: 0 0 8px 0;
+                }
+
+                .user-message p:last-child, .n8n-message p:last-child {
+                    margin-bottom: 0;
+                }
+
+                .user-message strong, .n8n-message strong {
+                    font-weight: bold;
+                }
+
+                .user-message em, .n8n-message em {
+                    font-style: italic;
+                }
+
+                .user-message code, .n8n-message code {
+                    background-color: rgba(255, 255, 255, 0.2);
+                    padding: 2px 4px;
+                    border-radius: 3px;
+                    font-family: 'Courier New', monospace;
+                    font-size: 13px;
+                }
+
+                .user-message pre, .n8n-message pre {
+                    background-color: rgba(255, 255, 255, 0.1);
+                    padding: 8px;
+                    border-radius: 6px;
+                    margin: 8px 0;
+                    overflow-x: auto;
+                }
+
+                .user-message pre code, .n8n-message pre code {
+                    background-color: transparent;
+                    padding: 0;
+                    font-size: 12px;
+                    line-height: 1.4;
+                }
+
+                .user-message a, .n8n-message a {
+                    color: inherit;
+                    text-decoration: underline;
+                }
+
+                .user-message a:hover, .n8n-message a:hover {
+                    text-decoration: none;
+                }
+
+                .user-message h1, .n8n-message h1,
+                .user-message h2, .n8n-message h2,
+                .user-message h3, .n8n-message h3 {
+                    margin: 8px 0 4px 0;
+                    font-weight: bold;
+                }
+
+                .user-message h1, .n8n-message h1 {
+                    font-size: 16px;
+                }
+
+                .user-message h2, .n8n-message h2 {
+                    font-size: 15px;
+                }
+
+                .user-message h3, .n8n-message h3 {
+                    font-size: 14px;
+                }
+
+                .user-message ul, .n8n-message ul {
+                    margin: 8px 0;
+                    padding-left: 20px;
+                }
+
+                .user-message li, .n8n-message li {
+                    margin: 2px 0;
                 }
 
             </style>
