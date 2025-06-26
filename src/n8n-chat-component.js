@@ -8,7 +8,7 @@
 
 class ChatComponent extends HTMLElement {
     static get observedAttributes() {
-        return ['chat-webhook-url', 'history-webhook-url', 'initial-messages'];
+        return ['chat-webhook-url', 'history-webhook-url', 'session-id', 'initial-messages'];
     }
 
     constructor() {
@@ -18,7 +18,7 @@ class ChatComponent extends HTMLElement {
         this._initialMessages = [];
         this.isRendered = false;
         this.waitingOnReply = false;
-        this.sessionId = this.generateUUID();
+        this.sessionId = this.getAttribute('session-id') || this.generateUUID();
 
         // Initialize from attributes if present
         this.chatWebhookUrl = this.getAttribute('chat-webhook-url') || '';
@@ -68,6 +68,12 @@ class ChatComponent extends HTMLElement {
             this.chatWebhookUrl = newValue;
         } else if (name === 'history-webhook-url') {
             this.historyWebhookUrl = newValue;
+            // Fetch message history if history webhook is provided and component is rendered
+            if (this.historyWebhookUrl && this.isRendered) {
+                this.fetchMessageHistory();
+            }
+        } else if (name === 'session-id') {
+            this.sessionId = newValue || this.generateUUID();
             // Fetch message history if history webhook is provided and component is rendered
             if (this.historyWebhookUrl && this.isRendered) {
                 this.fetchMessageHistory();
@@ -150,18 +156,36 @@ class ChatComponent extends HTMLElement {
                 throw new Error('Failed to fetch message history');
             }
             const data = await response.json();
-            if (data.messageHistory && Array.isArray(data.messageHistory)) {
-                // Clear existing messages and add history
-                this.messages = [];
-                const messagesContainer = this.shadowRoot.querySelector('.chat-messages');
-                if (messagesContainer) {
-                    messagesContainer.innerHTML = '';
+            if (data.messageHistory) {
+                // Parse the JSON string within messageHistory
+                let historyMessages;
+                try {
+                    historyMessages = JSON.parse(data.messageHistory);
+                } catch (e) {
+                    console.error('Failed to parse messageHistory JSON:', e);
+                    return;
                 }
 
-                // Add each message from history
-                data.messageHistory.forEach(historyMessage => {
-                    this.insertMessage(historyMessage.message, historyMessage.source);
-                });
+                if (Array.isArray(historyMessages)) {
+                    // Clear existing messages and add history
+                    this.messages = [];
+                    const messagesContainer = this.shadowRoot.querySelector('.chat-messages');
+                    if (messagesContainer) {
+                        messagesContainer.innerHTML = '';
+                    }
+
+                    // Add each message from history
+                    historyMessages.forEach(historyMessage => {
+                        // Insert human message first (if exists)
+                        if (historyMessage.human) {
+                            this.insertMessage(historyMessage.human, 'user');
+                        }
+                        // Then insert ai message (if exists)
+                        if (historyMessage.ai) {
+                            this.insertMessage(historyMessage.ai, 'n8n');
+                        }
+                    });
+                }
             }
         } catch (error) {
             console.error('Error fetching message history:', error);

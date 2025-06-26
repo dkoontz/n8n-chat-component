@@ -75,6 +75,10 @@ class N8nChatCard extends HTMLElement {
             chatComponent.setAttribute('history-webhook-url', this.config.history_webhook_url);
         }
 
+        if (this.config.session_id) {
+            chatComponent.setAttribute('session-id', this.config.session_id);
+        }
+
         if (this.config.initial_messages) {
             chatComponent.setAttribute('initial-messages', JSON.stringify(this.config.initial_messages));
         }
@@ -87,6 +91,9 @@ class N8nChatCard extends HTMLElement {
             chatComponent.chatWebhookUrl = this.config.chat_webhook_url;
             if (this.config.history_webhook_url) {
                 chatComponent.historyWebhookUrl = this.config.history_webhook_url;
+            }
+            if (this.config.session_id) {
+                chatComponent.sessionId = this.config.session_id;
             }
             if (this.config.initial_messages) {
                 chatComponent.initialMessages = this.config.initial_messages;
