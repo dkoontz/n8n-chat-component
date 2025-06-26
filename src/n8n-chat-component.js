@@ -40,62 +40,6 @@ class ChatComponent extends HTMLElement {
         }
     }
 
-    // UUID generation method
-    generateUUID() {
-        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
-            const r = Math.random() * 16 | 0;
-            const v = c == 'x' ? r : (r & 0x3 | 0x8);
-            return v.toString(16);
-        });
-    }
-
-    // Markdown parsing method
-    parseMarkdown(text) {
-        if (!text) return '';
-        
-        // Escape HTML to prevent XSS
-        let html = text
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
-
-        // Parse markdown syntax
-        html = html
-            // Code blocks (triple backticks)
-            .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
-            // Inline code
-            .replace(/`([^`]+)`/g, '<code>$1</code>')
-            // Bold text (**text** or __text__)
-            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-            .replace(/__(.*?)__/g, '<strong>$1</strong>')
-            // Italic text (*text* or _text_)
-            .replace(/\*([^*]+)\*/g, '<em>$1</em>')
-            .replace(/_([^_]+)_/g, '<em>$1</em>')
-            // Links [text](url)
-            .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
-            // Headers (# ## ###)
-            .replace(/^### (.*$)/gm, '<h3>$1</h3>')
-            .replace(/^## (.*$)/gm, '<h2>$1</h2>')
-            .replace(/^# (.*$)/gm, '<h1>$1</h1>')
-            // Lists (- item)
-            .replace(/^- (.*)$/gm, '<li>$1</li>')
-            // Wrap consecutive list items in <ul>
-            .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
-            // Line breaks (double newlines become paragraphs)
-            .replace(/\n\n+/g, '</p><p>')
-            // Single newlines become <br>
-            .replace(/\n/g, '<br>');
-
-        // Wrap in paragraph if it doesn't start with a block element
-        if (!html.match(/^<(h[1-6]|ul|pre|p)/)) {
-            html = '<p>' + html + '</p>';
-        }
-
-        return html;
-    }
-
     // Property setters and getters
     get initialMessages() {
         return this._initialMessages;
@@ -154,15 +98,21 @@ class ChatComponent extends HTMLElement {
         this.addMessageToDom(message, source);
     }
 
-    async sendMessage(message) {
+    async sendChatMessage(message) {
         if (!this.chatWebhookUrl || this.waitingOnReply) {
             if (!this.chatWebhookUrl) console.error('Chat webhook URL is not set.');
             return;
         }
         try {
-            this.setWaitingOnReply(true);
+            this.waitingOnReply = true;
+            const button = this.shadowRoot.querySelector('.send-button');
+            button.disabled = true;
+            button.textContent = 'Sending...';
+
             this.insertMessage(message, 'user');
-            await this.sendMessageToWebhook(message);
+            this.showProgressIndicator();
+
+            await this.sendMessageToChatWebhook(message);
         } catch (error) {
             console.error('Error sending message:', error);
         } finally {
@@ -170,7 +120,7 @@ class ChatComponent extends HTMLElement {
         }
     }
 
-    async sendMessageToWebhook(message) {
+    async sendMessageToChatWebhook(message) {
         const response = await fetch(this.chatWebhookUrl, {
             method: 'POST',
             headers: {
@@ -252,6 +202,34 @@ class ChatComponent extends HTMLElement {
 
         button.disabled = loading;
         button.textContent = loading ? 'Sending...' : 'Send';
+
+        if (!loading) {
+            this.hideProgressIndicator();
+        }
+    }
+
+    showProgressIndicator() {
+        if (this.isRendered) {
+            const progressElement = document.createElement('div');
+            progressElement.className = 'progress-indicator';
+            progressElement.innerHTML = `
+                <div class="progress-dots">
+                    <div class="progress-dot"></div>
+                    <div class="progress-dot"></div>
+                    <div class="progress-dot"></div>
+                </div>
+            `;
+            this.shadowRoot.querySelector('.chat-messages').appendChild(progressElement);
+        }
+    }
+
+    hideProgressIndicator() {
+        if (this.isRendered) {
+            const progressElement = this.shadowRoot.querySelector('.progress-indicator');
+            if (progressElement) {
+                progressElement.remove();
+            }
+        }
     }
 
     addMessageToDom(message, sender) {
@@ -419,6 +397,58 @@ class ChatComponent extends HTMLElement {
                     margin: 2px 0;
                 }
 
+                .progress-indicator {
+                    align-self: flex-end;
+                    margin: 5px 0;
+                    padding: 10px 12px;
+                    border-radius: 18px;
+                    border-bottom-right-radius: 4px;
+                    background-color: #28a745;
+                    color: white;
+                    max-width: 70%;
+                    font-size: 14px;
+                    line-height: 1.4;
+                    display: flex;
+                    align-items: center;
+                    gap: 8px;
+                }
+
+                .progress-dots {
+                    display: flex;
+                    gap: 2px;
+                }
+
+                .progress-dot {
+                    width: 6px;
+                    height: 6px;
+                    border-radius: 50%;
+                    background-color: rgba(255, 255, 255, 0.7);
+                    animation: pulse 1.5s infinite;
+                }
+
+                .progress-dot:nth-child(2) {
+                    animation-delay: 0.3s;
+                }
+
+                .progress-dot:nth-child(3) {
+                    animation-delay: 0.6s;
+                }
+
+                @keyframes pulse {
+                    0%, 20% {
+                        opacity: 0.3;
+                        transform: scale(0.8);
+                    }
+                    50% {
+                        opacity: 1;
+                        transform: scale(1);
+                    }
+                    100% {
+                        opacity: 0.3;
+                        transform: scale(0.8);
+                    }
+                }
+
             </style>
             <div class="chat-container">
                 <div class="chat-messages"></div>
@@ -434,7 +464,7 @@ class ChatComponent extends HTMLElement {
         const sendMessage = () => {
             const message = input.value.trim();
             if (message && !this.waitingOnReply) {
-                this.sendMessage(message);
+                this.sendChatMessage(message);
                 input.value = '';
             }
         };
@@ -451,6 +481,62 @@ class ChatComponent extends HTMLElement {
         if (this._initialMessages.length > 0) {
             this.insertInitialMessages();
         }
+    }
+
+    // UUID generation method
+    generateUUID() {
+        return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+            const r = Math.random() * 16 | 0;
+            const v = c == 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+    }
+
+    // Markdown parsing method
+    parseMarkdown(text) {
+        if (!text) return '';
+
+        // Escape HTML to prevent XSS
+        let html = text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+
+        // Parse markdown syntax
+        html = html
+            // Code blocks (triple backticks)
+            .replace(/```([\s\S]*?)```/g, '<pre><code>$1</code></pre>')
+            // Inline code
+            .replace(/`([^`]+)`/g, '<code>$1</code>')
+            // Bold text (**text** or __text__)
+            .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+            .replace(/__(.*?)__/g, '<strong>$1</strong>')
+            // Italic text (*text* or _text_)
+            .replace(/\*([^*]+)\*/g, '<em>$1</em>')
+            .replace(/_([^_]+)_/g, '<em>$1</em>')
+            // Links [text](url)
+            .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>')
+            // Headers (# ## ###)
+            .replace(/^### (.*$)/gm, '<h3>$1</h3>')
+            .replace(/^## (.*$)/gm, '<h2>$1</h2>')
+            .replace(/^# (.*$)/gm, '<h1>$1</h1>')
+            // Lists (- item)
+            .replace(/^- (.*)$/gm, '<li>$1</li>')
+            // Wrap consecutive list items in <ul>
+            .replace(/(<li>.*<\/li>)/gs, '<ul>$1</ul>')
+            // Line breaks (double newlines become paragraphs)
+            .replace(/\n\n+/g, '</p><p>')
+            // Single newlines become <br>
+            .replace(/\n/g, '<br>');
+
+        // Wrap in paragraph if it doesn't start with a block element
+        if (!html.match(/^<(h[1-6]|ul|pre|p)/)) {
+            html = '<p>' + html + '</p>';
+        }
+
+        return html;
     }
 }
 
