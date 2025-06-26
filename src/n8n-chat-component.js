@@ -174,7 +174,14 @@ class ChatComponent extends HTMLElement {
                         messagesContainer.innerHTML = '';
                     }
 
-                    // Add each message from history
+                    // Insert initial messages first
+                    if (this._initialMessages && this._initialMessages.length > 0) {
+                        this._initialMessages.forEach(message => {
+                            this.insertMessage(message, 'n8n');
+                        });
+                    }
+
+                    // Then add each message from history
                     historyMessages.forEach(historyMessage => {
                         // Insert human message first (if exists)
                         if (historyMessage.human) {
