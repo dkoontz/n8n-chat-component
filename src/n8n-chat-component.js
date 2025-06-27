@@ -300,6 +300,14 @@ class ChatComponent extends HTMLElement {
                     padding: 10px;
                     border: 1px solid #ccc;
                     border-radius: 5px;
+                    resize: none;
+                    min-height: 20px;
+                    max-height: 100px;
+                    overflow-y: hidden;
+                    font-family: inherit;
+                    font-size: 14px;
+                    line-height: 1.4;
+                    box-sizing: border-box;
                 }
 
                 .send-button {
@@ -453,7 +461,7 @@ class ChatComponent extends HTMLElement {
             <div class="chat-container">
                 <div class="chat-messages"></div>
                 <div class="chat-input-container">
-                    <input type="text" class="chat-input" placeholder="Type a message..." />
+                    <textarea class="chat-input" placeholder="Type a message..." rows="1"></textarea>
                     <button class="send-button">Send</button>
                 </div>
             </div>
@@ -466,15 +474,34 @@ class ChatComponent extends HTMLElement {
             if (message && !this.waitingOnReply) {
                 this.sendChatMessage(message);
                 input.value = '';
+                autoResize(); // Reset textarea size after clearing
             }
         };
 
         sendButton.addEventListener('click', sendMessage);
         input.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
                 sendMessage();
             }
         });
+
+        // Auto-resize functionality
+        const autoResize = () => {
+            input.style.height = 'auto';
+            const newHeight = Math.min(input.scrollHeight, 100);
+            input.style.height = newHeight + 'px';
+            
+            // Enable scrolling only when max height is reached
+            if (input.scrollHeight > 100) {
+                input.style.overflowY = 'auto';
+            } else {
+                input.style.overflowY = 'hidden';
+            }
+        };
+
+        input.addEventListener('input', autoResize);
+        input.addEventListener('paste', () => setTimeout(autoResize, 0));
 
         // Mark as rendered and insert initial messages if they exist
         this.isRendered = true;
